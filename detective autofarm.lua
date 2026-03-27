@@ -277,7 +277,7 @@ local function returnAndDeposit()
 
     -- going to boat from building 
     local char4 = game.Players.LocalPlayer.Character
-    char4:PivotTo(CFrame.new(-1986.71082, -857, 15902))
+    char4:PivotTo(CFrame.new(-1986, -857, 15902))
     task.wait(0.5)
 
     local char5 = game.Players.LocalPlayer.Character
