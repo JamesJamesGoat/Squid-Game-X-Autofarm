@@ -111,7 +111,7 @@ local function travelToBuilding()
     
     -- going to building from boat
     local char3 = game.Players.LocalPlayer.Character
-    char3:PivotTo(CFrame.new(-2928, -770, 15393))
+    char3:PivotTo(CFrame.new(-2886, -770, 15396))
     task.wait(0.5)
 
     local char4 = game.Players.LocalPlayer.Character
