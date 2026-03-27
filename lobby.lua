@@ -1,13 +1,14 @@
 -- script to walk to que area, will timeout after 2 mins 30 sec and rejoin if still in game
 local plr = game.Players.LocalPlayer
 local runService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
 
 print("✅ Register Partition Loaded - Walking to matchmaking queue...")
 
--- Start the 150-second Kill Switch
+-- Start the 150-second Fail-Safe (Teleports instead of closing)
 task.delay(150, function()
-    warn("⏱️ 150 seconds reached in Register game. Force closing Roblox...")
-    game:Shutdown() 
+    warn("⏱️ 150 seconds reached in Register game. Teleporting to a new server...")
+    TeleportService:Teleport(7554888362, plr) 
 end)
 
 local character = plr.Character or plr.CharacterAdded:Wait()
