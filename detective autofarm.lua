@@ -273,6 +273,7 @@ local function returnAndDeposit()
     task.wait(1)
     
     fireproximityprompt(workspace.Data.Elevator.Lobby.UIPrompt.ProximityPrompt)
+     task.wait(3)
 
     -- going to boat from building 
     local char4 = game.Players.LocalPlayer.Character
