@@ -13,7 +13,7 @@ local currentPlaceId = tonumber(game.PlaceId)
 
 if currentPlaceId == 7559074529 then
     print("🔗 Detective Game Detected! Routing to partition script...")
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/JamesJamesGoat/Squid-Game-X-Autofarm/refs/heads/main/game%20setup.lua"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/JamesJamesGoat/Squid-Game-X-Autofarm/refs/heads/main/game%20setup%20and%20farming%20loop.lua"))()
 
 elseif currentPlaceId == 7554888362 then
     print("🔗 Register Game Detected! Routing to partition script...")
