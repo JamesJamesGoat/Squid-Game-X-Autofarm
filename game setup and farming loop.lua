@@ -50,6 +50,16 @@ local function isDisguised()
     return false
 end
 
+-- NEW: Helper function to check if any active player is on the Guard team
+local function isGuardPresent()
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if player.Team and player.Team.Name == "Guard" then
+            return true
+        end
+    end
+    return false
+end
+
 local function processItem(item)
     local pPart = item:FindFirstChild("PPart")
     local prompt = pPart and pPart:FindFirstChild("ProximityPrompt")
@@ -78,6 +88,37 @@ local function processItem(item)
 
     return true
 end
+
+-- // ========================================================================
+-- // 1.5. BACKGROUND EVENT LISTENERS (Non-Blocking)
+-- // ========================================================================
+
+-- TASK 1: Sit quietly in the background and grab the baby whenever it spawns
+workspace.ChildAdded:Connect(function(child)
+    if child.Name == "BabyPickup" then
+        task.wait(0.5) 
+        local trigger = child:FindFirstChild("Trigger")
+        if trigger then
+            local prompt = trigger:FindFirstChild("PickupPrompt")
+            if prompt and prompt:IsA("ProximityPrompt") then
+                fireproximityprompt(prompt)
+                print("👶 Baby silently secured in the background!")
+            end
+        end
+    end
+end)
+
+-- TASK 2: Game Over Watcher. Checks for the ending island and teleports back to lobby.
+task.spawn(function()
+    while task.wait(1) do
+        local map = workspace:FindFirstChild("Map")
+        if map and map:FindFirstChild("IslandEscape") then
+            print("🏁 Game Over detected! Teleporting back to lobby...")
+            TeleportService:Teleport(7554888362, plr)
+            break -- Stops checking once the teleport is initiated
+        end
+    end
+end)
 
 -- // ========================================================================
 -- // 2. CORE FARMING FUNCTIONS
@@ -204,27 +245,37 @@ local function farmEvidence()
             break
         end
 
+        -- 1. Equip disguise first (triggers the 8-second wait if needed)
         if not isDisguised() then
             toggleDisguise()
             task.wait(8)
         end
 
-        repeat
-            task.wait(1)
-            if not isDisguised() then
-                print("⚠️ Disguise lost while waiting! Re-equipping...")
-                toggleDisguise()
-                task.wait(8)
-            end
+        -- 2. Check for the guard exactly ONCE
+        if isGuardPresent() then
+            print("👮 Guard active! Bypassing detection cooldown entirely...")
+        else
+            -- 3. No guard present. Now we wait for detection to drop.
+            repeat
+                task.wait(1)
+                
+                -- Ensure disguise stays active during the wait
+                if not isDisguised() then
+                    print("⚠️ Disguise lost while waiting! Re-equipping...")
+                    toggleDisguise()
+                    task.wait(8)
+                end
 
-            local currentY = getDetectionY()
-            if currentY <= 0.17 then
-                local detectionPercent = math.clamp(math.floor((0.5 - currentY) * 100), 0, 100)
-                print(string.format("⚠️ [Waiting] %d%% Detected | Waiting for cooldown below 33%%...", detectionPercent))
-            end
-        until isDisguised() and getDetectionY() >= 0.17
+                local currentY = getDetectionY()
+                if currentY <= 0.17 then
+                    local detectionPercent = math.clamp(math.floor((0.5 - currentY) * 100), 0, 100)
+                    print(string.format("⚠️ [Waiting] %d%% Detected | NO GUARD IN GAME | Waiting for cooldown...", detectionPercent))
+                end
+                
+            until isDisguised() and getDetectionY() >= 0.17
+        end
 
-        print("✅ Safe to collect! Detection below 33%. Proceeding to next item...")
+        print("✅ Safe to collect! Proceeding to next item...")
 
         local folder = workspace:FindFirstChild("Data") 
             and workspace.Data:FindFirstChild("Detective") 
@@ -414,4 +465,4 @@ if successfullyJoined then
         print("🔁 Cycle complete! Waiting 5 seconds before restarting...")
         task.wait(5)
     end
-end
+end 
