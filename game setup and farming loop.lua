@@ -67,12 +67,9 @@ local function processItem(item)
     
     if not prompt then return false end
 
-    teleportTo(pPart.Position + Vector3.new(0, 2, 0))
-    print("📍 Teleported safely above evidence.")
+    teleportTo(pPart.Position + Vector3.new(0, 4, 0))
     task.wait(1)
-
     fireproximityprompt(prompt)
-    print("Interact: Fired proximity prompt.")
     task.wait(1)
 
     return true
@@ -85,7 +82,7 @@ end
 -- TASK 1: Sit quietly in the background and grab the baby whenever it spawns
 workspace.ChildAdded:Connect(function(child)
     if child.Name == "BabyPickup" then
-        task.wait(0.5) 
+        task.wait(0.3) 
         local trigger = child:FindFirstChild("Trigger")
         if trigger then
             local prompt = trigger:FindFirstChild("PickupPrompt")
@@ -153,7 +150,6 @@ local function travelToBuilding()
     local humanoid = char4:FindFirstChild("Humanoid")
     local root = char4:FindFirstChild("HumanoidRootPart")
 
-    print("🏃‍♂️ Forcing WalkSpeed bypass (Ignoring Y-Axis)...")
     local forceSpeed = runService.Heartbeat:Connect(function()
         if humanoid then humanoid.WalkSpeed = 45 end
     end)
@@ -280,7 +276,6 @@ local function returnAndDeposit()
     local humanoid = char5:FindFirstChild("Humanoid")
     local root = char5:FindFirstChild("HumanoidRootPart")
 
-    print("🏃‍♂️ Forcing WalkSpeed bypass (Ignoring Y-Axis)...")
     local forceSpeed = runService.Heartbeat:Connect(function()
         if humanoid then humanoid.WalkSpeed = 45 end
     end)
@@ -306,16 +301,26 @@ local function returnAndDeposit()
     if forceSpeed then forceSpeed:Disconnect() end
     task.wait(1)
 
-    -- tp to boat and fire
+-- tp to boat and fire
     local player4 = game.Players.LocalPlayer
     local character6 = player4.Character or player4.CharacterAdded:Wait()
     local rootPart4 = character6:WaitForChild("HumanoidRootPart")
     local target4 = workspace.Data.Detective.Boat["Speedy Bowrider"].RearPart
     rootPart4.CFrame = target4.CFrame * CFrame.new(0, 5, 0)
-    task.wait(2)
+    task.wait(1)
     
     fireproximityprompt(workspace.Data.Detective.Boat["Speedy Bowrider"].RearPart.Attachment.ProximityPrompt)
-    task.wait(3)
+    
+    -- Give the server 2 seconds to process the deposit and update your money
+    task.wait(2) 
+
+    -- ✨ NEW: Read the bank account and print the total
+    local leaderstats = plr:FindFirstChild("leaderstats")
+    local coins = leaderstats and leaderstats:FindFirstChild("Coins")
+    
+    if coins then
+        print("💰 Deposit successful! Current Coin Balance: " .. coins.Value)
+    end
 end
 
 -- // ========================================================================
@@ -377,44 +382,59 @@ else
 end
 
 -- // ========================================================================
--- // 4. MASTER FARMING LOOP (Death-Proof Edition)
+-- // 4. MASTER FARMING LOOP (Death-Proof & Memory Edition)
 -- // ========================================================================
 if successfullyJoined then
     print("🚀 Auto-Join Complete. Initializing Death-Proof Master Loop...")
 
     local farmThread = nil 
+    
+    local totalDeposits = 0 
+    local maxDeposits = 8 -- ???????????????????? test 8
 
     local function startFarmCycle()
         farmThread = task.spawn(function()
             
             initialBoatSetup() 
             
-            -- Guard Check Server Hop Exploit
+            -- ✨ NEW: The 5-Second Double-Check Guard Exploit
             if not isGuardPresent() then
-                print("❌ No Guard in server! Teleporting to lobby to server hop...")
-                TeleportService:Teleport(7554888362, plr)
-                return -- Kills the thread entirely while waiting for teleport
+                print("⏳ No Guard detected on load. Waiting 5 seconds for late loaders...")
+                task.wait(5)
+                
+                -- The second check
+                if not isGuardPresent() then
+                    print("❌ Still no Guard in server! Teleporting to lobby to server hop...")
+                    TeleportService:Teleport(7554888362, plr)
+                    return -- Kills the thread entirely while waiting for teleport
+                else
+                    print("👮 Guard finally loaded in! Proceeding with speed farm...")
+                end
+            else
+                print("👮 Guard confirmed immediately! Executing speed farm...")
             end
-
-            print("👮 Guard confirmed! Executing speed farm...")
             
-            -- 7-limit "for" loop
-            local maxDeposits = 7
-            for cycle = 1, maxDeposits do
-                print(string.format("🚀 Starting Farm Cycle %d of %d...", cycle, maxDeposits))
+            -- Loop runs based on the surviving global counter
+            while totalDeposits < maxDeposits do
+                local currentCycle = totalDeposits + 1
+                print(string.format("🚀 Starting Farm Cycle %d of %d...", currentCycle, maxDeposits))
                 
                 travelToBuilding()  -- Part 1
                 farmEvidence()      -- Part 2
                 returnAndDeposit()  -- Part 3
                 
+                -- We only add +1 AFTER you successfully deposit
+                totalDeposits = totalDeposits + 1
+                
                 -- Smart prints, but ALWAYS waits 5 seconds to protect data
-                if cycle == maxDeposits then
-                    print("💾 Final deposit complete! Waiting 5 seconds for data to save safely before hopping...")
+                if totalDeposits == maxDeposits then
+                    print("💾 Final deposit complete! Waiting additional 2 seconds before hopping...")
+                    task.wait(2)
                 else
-                    print("🔁 Cycle complete! Waiting 5 seconds before next run...")
+                    print(string.format("🔁 Cycle %d complete! Waiting 2 seconds before next run...", totalDeposits))
                 end
                 
-                task.wait(5)
+                task.wait(2)
             end
             
             print("🛑 Max server deposits reached (7/7)! Teleporting to new server...")
@@ -439,7 +459,7 @@ if successfullyJoined then
             end
         end)
 
-        task.wait(3) 
+        task.wait(5) 
         print("🔄 Character loaded! Starting fresh farm sequence...")
         startFarmCycle()
     end
