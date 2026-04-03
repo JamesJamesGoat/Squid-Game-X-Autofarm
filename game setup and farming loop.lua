@@ -7,50 +7,13 @@ local runService = game:GetService("RunService")
 local repStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
-local escapePosition = Vector3.new(8037, 172, 3718)
-
-local function toggleDisguise()
-    local character = plr.Character or plr.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    local tool = plr.Backpack:FindFirstChild("Disguise") or character:FindFirstChild("Disguise")
-    
-    if tool then
-        if tool.Parent ~= character then
-            humanoid:EquipTool(tool)
-        end
-        tool:Activate()
-        return true
-    end
-    return false
-end
-
 local function teleportTo(position)
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         plr.Character:PivotTo(CFrame.new(position))
     end
 end
 
-local function getDetectionY()
-    local gui = plr:FindFirstChild("PlayerGui")
-    local mover = gui and gui:FindFirstChild("DetectiveGUI") 
-        and gui.DetectiveGUI:FindFirstChild("Progress") 
-        and gui.DetectiveGUI.Progress:FindFirstChild("Mover")
-    
-    if mover and mover:FindFirstChild("UIGradient") then
-        return mover.UIGradient.Offset.Y
-    end
-    return 0.5 -- Default to safe
-end
-
-local function isDisguised()
-    local character = plr.Character
-    if character and character:FindFirstChild("Armour") then
-        return true
-    end
-    return false
-end
-
--- NEW: Helper function to check if any active player is on the Guard team
+-- Helper function to check if any active player is on the Guard team
 local function isGuardPresent()
     for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
         if player.Team and player.Team.Name == "Guard" then
@@ -60,31 +23,53 @@ local function isGuardPresent()
     return false
 end
 
+-- Smart walk function with 8-second timeout and teleport fallback
+local function smartWalkTo(targetVector)
+    local character = plr.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChild("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not rootPart then return end
+
+    -- Start walking
+    humanoid:MoveTo(targetVector)
+
+    local timeout = 8 -- The Roblox engine timeout limit
+    local startTime = os.clock()
+
+    -- Loop until we are within 3 studs of the target (ignoring Y height)
+    while (rootPart.Position * Vector3.new(1, 0, 1) - targetVector * Vector3.new(1, 0, 1)).Magnitude > 3 do
+        task.wait(0.2)
+        
+        -- Timeout fail-safe (The Teleport Fallback)
+        if os.clock() - startTime > timeout then
+            print("⚠️ Walk segment timed out! Teleporting to waypoint to stay on track...")
+            
+            -- Force teleport to the exact destination
+            character:PivotTo(CFrame.new(targetVector))
+            
+            -- Give the game engine half a second to register the teleport before moving on
+            task.wait(0.5) 
+            break
+        end
+    end
+end
+
+-- Hyper-fast processing: No disguises, no safe zones. Just grab and go.
 local function processItem(item)
     local pPart = item:FindFirstChild("PPart")
     local prompt = pPart and pPart:FindFirstChild("ProximityPrompt")
     
     if not prompt then return false end
 
-    teleportTo(pPart.Position)
-    print("📍 Teleported to evidence.")
-    task.wait(1)
-
-    toggleDisguise()
-    print("🔓 Removed disguise.")
+    teleportTo(pPart.Position + Vector3.new(0, 2, 0))
+    print("📍 Teleported safely above evidence.")
     task.wait(1)
 
     fireproximityprompt(prompt)
     print("Interact: Fired proximity prompt.")
     task.wait(1)
-
-    teleportTo(escapePosition)
-    print("🚀 Teleported to safe location.")
-    task.wait(7)
-
-    toggleDisguise()
-    print("🎭 Disguised again.")
-    task.wait(8)
 
     return true
 end
@@ -150,8 +135,6 @@ local function initialBoatSetup()
     task.wait(1)
     game:GetService("Players").LocalPlayer.Character.Humanoid.Sit = false
     task.wait(1)
-    toggleDisguise()
-    task.wait(1)
 end
 
 local function travelToBuilding()
@@ -171,36 +154,21 @@ local function travelToBuilding()
         if humanoid then humanoid.WalkSpeed = 45 end
     end)
 
-    humanoid:MoveTo(Vector3.new(-2854, root.Position.Y, 15430))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2814, root.Position.Y, 15313))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2726, root.Position.Y, 15268))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2683, root.Position.Y, 15215))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2581, root.Position.Y, 15278))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2540, root.Position.Y, 15442))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2451, root.Position.Y, 15529))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2403, root.Position.Y, 15519))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2308, root.Position.Y, 15558))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2309, root.Position.Y, 15644))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2277, root.Position.Y, 15721))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2124, root.Position.Y, 15875))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2123, root.Position.Y, 15905))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2059, root.Position.Y, 15974))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-1987, root.Position.Y, 15903))
-    humanoid.MoveToFinished:Wait()
+    smartWalkTo(Vector3.new(-2854, root.Position.Y, 15430))
+    smartWalkTo(Vector3.new(-2814, root.Position.Y, 15313))
+    smartWalkTo(Vector3.new(-2726, root.Position.Y, 15268))
+    smartWalkTo(Vector3.new(-2683, root.Position.Y, 15215))
+    smartWalkTo(Vector3.new(-2581, root.Position.Y, 15278))
+    smartWalkTo(Vector3.new(-2540, root.Position.Y, 15442))
+    smartWalkTo(Vector3.new(-2451, root.Position.Y, 15529))
+    smartWalkTo(Vector3.new(-2403, root.Position.Y, 15519))
+    smartWalkTo(Vector3.new(-2308, root.Position.Y, 15558))
+    smartWalkTo(Vector3.new(-2309, root.Position.Y, 15644))
+    smartWalkTo(Vector3.new(-2277, root.Position.Y, 15721))
+    smartWalkTo(Vector3.new(-2124, root.Position.Y, 15875))
+    smartWalkTo(Vector3.new(-2123, root.Position.Y, 15905))
+    smartWalkTo(Vector3.new(-2059, root.Position.Y, 15974))
+    smartWalkTo(Vector3.new(-1987, root.Position.Y, 15903))
 
     print("🛑 Sequence finished.")
     task.wait(0.5)
@@ -236,7 +204,7 @@ local function travelToBuilding()
 end
 
 local function farmEvidence()
-    print("🔍 Starting evidence farm...")
+    print("🔍 Starting evidence farm (Speed Mode)...")
     local itemsCollected = 0
     
     while true do
@@ -244,38 +212,6 @@ local function farmEvidence()
             print("🎒 Inventory full (8/8)! Stopping loop.")
             break
         end
-
-        -- 1. Equip disguise first (triggers the 8-second wait if needed)
-        if not isDisguised() then
-            toggleDisguise()
-            task.wait(8)
-        end
-
-        -- 2. Check for the guard exactly ONCE
-        if isGuardPresent() then
-            print("👮 Guard active! Bypassing detection cooldown entirely...")
-        else
-            -- 3. No guard present. Now we wait for detection to drop.
-            repeat
-                task.wait(1)
-                
-                -- Ensure disguise stays active during the wait
-                if not isDisguised() then
-                    print("⚠️ Disguise lost while waiting! Re-equipping...")
-                    toggleDisguise()
-                    task.wait(8)
-                end
-
-                local currentY = getDetectionY()
-                if currentY <= 0.17 then
-                    local detectionPercent = math.clamp(math.floor((0.5 - currentY) * 100), 0, 100)
-                    print(string.format("⚠️ [Waiting] %d%% Detected | NO GUARD IN GAME | Waiting for cooldown...", detectionPercent))
-                end
-                
-            until isDisguised() and getDetectionY() >= 0.17
-        end
-
-        print("✅ Safe to collect! Proceeding to next item...")
 
         local folder = workspace:FindFirstChild("Data") 
             and workspace.Data:FindFirstChild("Detective") 
@@ -345,36 +281,21 @@ local function returnAndDeposit()
         if humanoid then humanoid.WalkSpeed = 45 end
     end)
 
-    humanoid:MoveTo(Vector3.new(-2059, root.Position.Y, 15974))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2123, root.Position.Y, 15905))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2124, root.Position.Y, 15875))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2277, root.Position.Y, 15721))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2309, root.Position.Y, 15644))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2308, root.Position.Y, 15558))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2403, root.Position.Y, 15519))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2451, root.Position.Y, 15529))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2540, root.Position.Y, 15442))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2581, root.Position.Y, 15278))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2683, root.Position.Y, 15215))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2726, root.Position.Y, 15268))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2814, root.Position.Y, 15313))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2854, root.Position.Y, 15430))
-    humanoid.MoveToFinished:Wait()
-    humanoid:MoveTo(Vector3.new(-2928, root.Position.Y, 15395))
-    humanoid.MoveToFinished:Wait()
+    smartWalkTo(Vector3.new(-2059, root.Position.Y, 15974))
+    smartWalkTo(Vector3.new(-2123, root.Position.Y, 15905))
+    smartWalkTo(Vector3.new(-2124, root.Position.Y, 15875))
+    smartWalkTo(Vector3.new(-2277, root.Position.Y, 15721))
+    smartWalkTo(Vector3.new(-2309, root.Position.Y, 15644))
+    smartWalkTo(Vector3.new(-2308, root.Position.Y, 15558))
+    smartWalkTo(Vector3.new(-2403, root.Position.Y, 15519))
+    smartWalkTo(Vector3.new(-2451, root.Position.Y, 15529))
+    smartWalkTo(Vector3.new(-2540, root.Position.Y, 15442))
+    smartWalkTo(Vector3.new(-2581, root.Position.Y, 15278))
+    smartWalkTo(Vector3.new(-2683, root.Position.Y, 15215))
+    smartWalkTo(Vector3.new(-2726, root.Position.Y, 15268))
+    smartWalkTo(Vector3.new(-2814, root.Position.Y, 15313))
+    smartWalkTo(Vector3.new(-2854, root.Position.Y, 15430))
+    smartWalkTo(Vector3.new(-2928, root.Position.Y, 15395))
 
     print("🛑 Sequence finished.")
     task.wait(0.5)
@@ -433,7 +354,6 @@ if teamRemote then
             
             print("⏳ Waiting 2 seconds before executing boat setup...")
             task.wait(2)
-            initialBoatSetup()
             
             break 
         end
@@ -453,16 +373,62 @@ else
 end
 
 -- // ========================================================================
--- // 4. MASTER FARMING LOOP
+-- // 4. MASTER FARMING LOOP (Death-Proof Edition)
 -- // ========================================================================
 if successfullyJoined then
-    print("🚀 Auto-Join and Setup Complete. Starting Master Farming Loop...")
-    while true do
-        travelToBuilding()  -- Part 1
-        farmEvidence()      -- Part 2
-        returnAndDeposit()  -- Part 3
-        
-        print("🔁 Cycle complete! Waiting 5 seconds before restarting...")
-        task.wait(5)
+    print("🚀 Auto-Join Complete. Initializing Death-Proof Master Loop...")
+
+    local farmThread = nil 
+
+    local function startFarmCycle()
+        farmThread = task.spawn(function()
+            
+            initialBoatSetup() 
+            
+            -- Guard Check Server Hop Exploit
+            if not isGuardPresent() then
+                print("❌ No Guard in server! Teleporting to lobby to server hop...")
+                TeleportService:Teleport(7554888362, plr)
+                return -- Kills the thread entirely while waiting for teleport
+            end
+
+            print("👮 Guard confirmed! Executing speed farm...")
+            
+            while true do
+                travelToBuilding()  -- Part 1
+                farmEvidence()      -- Part 2
+                returnAndDeposit()  -- Part 3
+                
+                print("🔁 Cycle complete! Waiting 5 seconds before restarting...")
+                task.wait(5)
+            end
+        end)
     end
-end 
+
+    local function setupCharacter(character)
+        if farmThread then
+            task.cancel(farmThread)
+            farmThread = nil
+        end
+
+        local humanoid = character:WaitForChild("Humanoid")
+        
+        humanoid.Died:Connect(function()
+            print("💀 Character died! Instantly killing the farm loop to prevent errors...")
+            if farmThread then
+                task.cancel(farmThread)
+                farmThread = nil
+            end
+        end)
+
+        task.wait(3) 
+        print("🔄 Character loaded! Starting fresh farm sequence...")
+        startFarmCycle()
+    end
+
+    plr.CharacterAdded:Connect(setupCharacter)
+
+    if plr.Character then
+        setupCharacter(plr.Character)
+    end
+end
