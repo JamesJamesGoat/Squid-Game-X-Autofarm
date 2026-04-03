@@ -398,14 +398,28 @@ if successfullyJoined then
 
             print("👮 Guard confirmed! Executing speed farm...")
             
-            while true do
+            -- 7-limit "for" loop
+            local maxDeposits = 7
+            for cycle = 1, maxDeposits do
+                print(string.format("🚀 Starting Farm Cycle %d of %d...", cycle, maxDeposits))
+                
                 travelToBuilding()  -- Part 1
                 farmEvidence()      -- Part 2
                 returnAndDeposit()  -- Part 3
                 
-                print("🔁 Cycle complete! Waiting 5 seconds before restarting...")
+                -- Smart prints, but ALWAYS waits 5 seconds to protect data
+                if cycle == maxDeposits then
+                    print("💾 Final deposit complete! Waiting 5 seconds for data to save safely before hopping...")
+                else
+                    print("🔁 Cycle complete! Waiting 5 seconds before next run...")
+                end
+                
                 task.wait(5)
             end
+            
+            print("🛑 Max server deposits reached (7/7)! Teleporting to new server...")
+            TeleportService:Teleport(7554888362, plr)
+            
         end)
     end
 
