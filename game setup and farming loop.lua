@@ -23,7 +23,7 @@ local function isGuardPresent()
     return false
 end
 
--- Smart walk function with 8-second timeout and teleport fallback
+-- Smart walk function with Drop-In Teleport fallback
 local function smartWalkTo(targetVector)
     local character = plr.Character
     if not character then return end
@@ -42,14 +42,18 @@ local function smartWalkTo(targetVector)
     while (rootPart.Position * Vector3.new(1, 0, 1) - targetVector * Vector3.new(1, 0, 1)).Magnitude > 3 do
         task.wait(0.2)
         
-        -- Timeout fail-safe (The Teleport Fallback)
+        -- Timeout fail-safe (The Drop-In Teleport Fallback)
         if os.clock() - startTime > timeout then
-            print("⚠️ Walk segment timed out! Teleporting to waypoint to stay on track...")
+            print("⚠️ Walk segment timed out! Teleporting safely from above...")
             
-            -- Force teleport to the exact destination
-            character:PivotTo(CFrame.new(targetVector))
+            -- We take the target's X and Z, but use our CURRENT height + 5 studs
+            local safeHeight = rootPart.Position.Y + 5
+            local safeTarget = Vector3.new(targetVector.X, safeHeight, targetVector.Z)
             
-            -- Give the game engine half a second to register the teleport before moving on
+            -- Force teleport
+            character:PivotTo(CFrame.new(safeTarget))
+            
+            -- Give the game engine half a second to register the drop before moving on
             task.wait(0.5) 
             break
         end
