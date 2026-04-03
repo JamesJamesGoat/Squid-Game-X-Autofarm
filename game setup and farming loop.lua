@@ -390,7 +390,7 @@ if successfullyJoined then
     local farmThread = nil 
     
     local totalDeposits = 0 
-    local maxDeposits = 8 -- ???????????????????? test 8
+    local maxDeposits = 7
 
     local function startFarmCycle()
         farmThread = task.spawn(function()
