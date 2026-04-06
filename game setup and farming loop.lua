@@ -255,17 +255,17 @@ local function returnAndDeposit()
     local rootPart2 = character2:WaitForChild("HumanoidRootPart")
     local target2 = workspace.Data.Elevator.Lobby.Inside.Main
     rootPart2.CFrame = target2.CFrame * CFrame.new(0,0,0)
-    task.wait(1)
+    task.wait(0.5)
     
     local player3 = game.Players.LocalPlayer
     local character3 = player3.Character or player3.CharacterAdded:Wait()
     local rootPart3 = character3:WaitForChild("HumanoidRootPart")
     local target3 = workspace.Data.Elevator.Lobby.UIPrompt
     rootPart3.CFrame = target3.CFrame * CFrame.new(-1, 1, 1)
-    task.wait(1)
+    task.wait(0.5)
     
     fireproximityprompt(workspace.Data.Elevator.Lobby.UIPrompt.ProximityPrompt)
-     task.wait(3)
+     task.wait(1)
 
     -- going to boat from building 
     local char4 = game.Players.LocalPlayer.Character
