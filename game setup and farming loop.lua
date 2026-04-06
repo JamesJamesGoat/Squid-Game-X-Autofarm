@@ -141,7 +141,7 @@ end
 local function travelToBuilding()
     print("🚶‍♂️ Traveling to building from boat...")
     
-    -- going to building from boat
+    -- going to building
     local char3 = game.Players.LocalPlayer.Character
     char3:PivotTo(CFrame.new(-2886, -770, 15396))
     task.wait(0.5)
@@ -183,7 +183,7 @@ local function travelToBuilding()
     task.wait(1)
     
     fireproximityprompt(workspace.Data.Elevator.Island.OpenDoorPromptOutside.ProximityPrompt)
-    task.wait(2)
+    task.wait(1)
     
     local player4 = game.Players.LocalPlayer
     local character6 = player4.Character or player4.CharacterAdded:Wait()
@@ -200,7 +200,7 @@ local function travelToBuilding()
     task.wait(1)
     
     fireproximityprompt(workspace.Data.Elevator.Island.UIPrompt.ProximityPrompt)
-    task.wait(5)
+    task.wait(3)
 end
 
 local function farmEvidence()
@@ -254,7 +254,7 @@ local function returnAndDeposit()
     local character2 = player2.Character or player2.CharacterAdded:Wait()
     local rootPart2 = character2:WaitForChild("HumanoidRootPart")
     local target2 = workspace.Data.Elevator.Lobby.Inside.Main
-    rootPart2.CFrame = target2.CFrame * CFrame.new(-3,0,0)
+    rootPart2.CFrame = target2.CFrame * CFrame.new(2,0,0)
     task.wait(0.5)
     
     local player3 = game.Players.LocalPlayer
