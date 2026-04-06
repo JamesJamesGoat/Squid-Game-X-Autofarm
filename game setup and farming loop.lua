@@ -245,16 +245,16 @@ local function returnAndDeposit()
     local rootPart = character:WaitForChild("HumanoidRootPart")
     local target = workspace.Data.Elevator.Lobby.OpenDoorPromptOutside
     rootPart.CFrame = target.CFrame * CFrame.new(-1, 1, 1)
-    task.wait(1)
+    task.wait(0.5)
     
     fireproximityprompt(workspace.Data.Elevator.Lobby.OpenDoorPromptOutside.ProximityPrompt)
-    task.wait(2)
+    task.wait(1)
     
     local player2 = game.Players.LocalPlayer
     local character2 = player2.Character or player2.CharacterAdded:Wait()
     local rootPart2 = character2:WaitForChild("HumanoidRootPart")
     local target2 = workspace.Data.Elevator.Lobby.Inside.Main
-    rootPart2.CFrame = target2.CFrame * CFrame.new(0,0,0)
+    rootPart2.CFrame = target2.CFrame * CFrame.new(-3,0,0)
     task.wait(0.5)
     
     local player3 = game.Players.LocalPlayer
@@ -265,7 +265,7 @@ local function returnAndDeposit()
     task.wait(0.5)
     
     fireproximityprompt(workspace.Data.Elevator.Lobby.UIPrompt.ProximityPrompt)
-     task.wait(1)
+     task.wait(0.5)
 
     -- going to boat from building 
     local char4 = game.Players.LocalPlayer.Character
