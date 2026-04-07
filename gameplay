@@ -1,0 +1,348 @@
+-- // ========================================================================
+-- // 1. CONFIGURATION & SERVICES
+-- // ========================================================================
+local plr = game:GetService("Players").LocalPlayer
+local runService = game:GetService("RunService")
+local repStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local workspace = game:GetService("Workspace")
+
+local LOBBY_PLACE_ID = 7554888362
+local targetWalkSpeed = 30 -- ✨ Global speed controller permanently locked to 30
+
+-- // ========================================================================
+-- // 2. HELPER FUNCTIONS
+-- // ========================================================================
+local function getCharacter()
+    return plr.Character or plr.CharacterAdded:Wait()
+end
+
+local function teleportToLobby(reason)
+    warn("🔙 Teleporting to lobby: " .. reason)
+    TeleportService:Teleport(LOBBY_PLACE_ID, plr)
+end
+
+-- // ========================================================================
+-- // 3. BACKGROUND EVENT LISTENERS
+-- // ========================================================================
+
+-- Task: Auto-grab babies
+workspace.ChildAdded:Connect(function(child)
+    if child.Name == "BabyPickup" then
+        task.wait(0.3) 
+        local trigger = child:FindFirstChild("Trigger")
+        local prompt = trigger and trigger:FindFirstChild("PickupPrompt")
+        if prompt then fireproximityprompt(prompt) end
+    end
+end)
+
+-- Task: Game Over Watcher
+task.spawn(function()
+    while task.wait(1) do
+        local map = workspace:FindFirstChild("Map")
+        if map and map:FindFirstChild("IslandEscape") then
+            teleportToLobby("🏁 Game Over detected!")
+            break 
+        end
+    end
+end)
+
+-- // ========================================================================
+-- // 4. MINIGAME LOGIC
+-- // ========================================================================
+
+local MinigameHandlers = {
+    
+    -- 🟢 GAME 1: RED LIGHT GREEN LIGHT
+    ["RedLightGreenLight"] = function()
+        print("🚦 Red Light Green Light Detected!")
+        print("⏳ Waiting 20 seconds before moving...")
+        
+        task.wait(20) -- ✨ The requested 20-second startup delay
+        
+        local char = getCharacter()
+        local root = char:FindFirstChild("HumanoidRootPart")
+        local humanoid = char:FindFirstChild("Humanoid")
+        
+        local targetX = -12198
+        local isPlaying = true
+
+        task.spawn(function()
+            while isPlaying do
+                local rglMap = workspace.Map:FindFirstChild("RedLightGreenLight")
+                local lightPart = rglMap and rglMap:FindFirstChild("Map") and rglMap.Map:FindFirstChild("PointLight") and rglMap.Map.PointLight:FindFirstChild("PointLight")
+                
+                if lightPart and root and humanoid then
+                    local r = math.round(lightPart.Color.R * 255)
+                    local g = math.round(lightPart.Color.G * 255)
+                    local b = math.round(lightPart.Color.B * 255)
+
+                    if r == 85 and g == 255 and b == 0 then
+                        targetWalkSpeed = 30
+                        humanoid:MoveTo(Vector3.new(targetX, root.Position.Y, root.Position.Z))
+                    else
+                        targetWalkSpeed = 0
+                        humanoid:MoveTo(root.Position) 
+                    end
+                end
+                
+                task.wait(0.1)
+                if not workspace.Map:FindFirstChild("RedLightGreenLight") then isPlaying = false end
+            end
+        end)
+
+        while isPlaying do
+            task.wait(0.2)
+            if not workspace.Map:FindFirstChild("RedLightGreenLight") or not root then 
+                isPlaying = false; break 
+            end
+            
+            -- Absolute distance check to the hardcoded X coordinate
+            if math.abs(root.Position.X - targetX) <= 5 then
+                print("✅ Reached target X coordinate: -12198")
+                isPlaying = false; break
+            end
+        end
+
+        targetWalkSpeed = 30 
+        while workspace.Map:FindFirstChild("RedLightGreenLight") do task.wait(1) end
+        print("🗑️ RLGL Map cleared.")
+    end,
+
+    -- 🍯 GAME 2: HONEYCOMB
+    ["Honeycomb"] = function()
+        print("🍯 Honeycomb Started - Simple Outward Nudge")
+        local vim = game:GetService("VirtualInputManager")
+        local cam = workspace.CurrentCamera
+        local isPlaying = true
+        
+        -- ⏱️ SETTINGS
+        local slideDuration = 0.15 
+        
+        -- 🎈 THE FIX: How many pixels to inflate the path outward from the center
+        local outwardNudge = 13 
+        
+        -- ✨ Visual Tracer
+        local debugGui = Instance.new("ScreenGui")
+        debugGui.Name = "VIM_Tracer"
+        debugGui.IgnoreGuiInset = true 
+        debugGui.Parent = game.CoreGui
+
+        local function drawTracerDot(x, y, isSlide)
+            local dot = Instance.new("Frame")
+            local size = isSlide and 3 or 6 
+            dot.Size = UDim2.new(0, size, 0, size) 
+            dot.Position = UDim2.new(0, x - (size/2), 0, y - (size/2)) 
+            dot.BackgroundColor3 = isSlide and Color3.new(0, 0.5, 1) or Color3.new(0, 1, 1) 
+            dot.BorderSizePixel = 0
+            dot.Parent = debugGui
+            game.Debris:AddItem(dot, 3) 
+        end
+
+        local function smoothSlide(startX, startY, endX, endY, duration)
+            local steps = math.max(3, math.floor(duration * 60)) 
+            local stepWait = duration / steps
+            
+            for i = 1, steps do
+                local alpha = i / steps 
+                local currentX = math.round(startX + (endX - startX) * alpha)
+                local currentY = math.round(startY + (endY - startY) * alpha)
+                
+                drawTracerDot(currentX, currentY, true) 
+                vim:SendMouseMoveEvent(currentX, currentY, game)
+                task.wait(stepWait)
+            end
+        end
+
+        -- 🧮 HELPER: Applies the outward push to any X/Y coordinate
+        local function applyNudge(x, y, cx, cy, nudgeAmount)
+            if nudgeAmount <= 0 then return x, y end
+            local dx = x - cx
+            local dy = y - cy
+            local dist = math.sqrt(dx^2 + dy^2)
+            if dist > 0 then
+                return math.round(x + (dx / dist) * nudgeAmount), math.round(y + (dy / dist) * nudgeAmount)
+            end
+            return x, y
+        end
+
+        while isPlaying and workspace.Map:FindFirstChild("Honeycomb") do
+            local hcMap = workspace.Map:FindFirstChild("Honeycomb")
+            local shapesFolder = hcMap and hcMap:FindFirstChild("Shapes")
+            local activeShape = shapesFolder and shapesFolder:FindFirstChild(plr.Name)
+            
+            if not activeShape then
+                task.wait(0.5)
+                continue
+            end
+
+            local pathFolder = activeShape:FindFirstChild("Path")
+            
+            if pathFolder then
+                local allPieces = pathFolder:GetChildren()
+                local totalPoints = #allPieces
+                print("🎯 Found shape with " .. totalPoints .. " points.")
+                print("⏳ Waiting 5 seconds before starting smooth drag...")
+                
+                task.wait(5) 
+                
+                -- Calculate Center of Mass once
+                local centerX, centerY = 0, 0
+                local validPoints = 0
+                for _, piece in ipairs(allPieces) do
+                    local pos, vis = cam:WorldToViewportPoint(piece.Position)
+                    if vis then
+                        centerX = centerX + pos.X
+                        centerY = centerY + pos.Y
+                        validPoints = validPoints + 1
+                    end
+                end
+                if validPoints > 0 then
+                    centerX = math.round(centerX / validPoints)
+                    centerY = math.round(centerY / validPoints)
+                end
+                
+                print("🐍 Sliding with Outward Nudge...")
+                
+                local visited = {}
+                local currentPiece = pathFolder:FindFirstChild("1") or allPieces[1]
+                visited[currentPiece] = true
+                
+                local startPos, onScreen = cam:WorldToViewportPoint(currentPiece.Position)
+                if onScreen then
+                    -- Get raw coordinates, then apply the outward nudge
+                    local rawX = math.round(startPos.X)
+                    local rawY = math.round(startPos.Y)
+                    local currentX, currentY = applyNudge(rawX, rawY, centerX, centerY, outwardNudge)
+                    
+                    drawTracerDot(currentX, currentY, false)
+                    vim:SendMouseMoveEvent(currentX, currentY, game)
+                    task.wait(0.05)
+                    vim:SendMouseButtonEvent(currentX, currentY, 0, true, game, 1)
+                    task.wait(0.02)
+                    
+                    for step = 2, totalPoints do
+                        if not workspace.Map:FindFirstChild("Honeycomb") then break end
+                        
+                        local shortestDistance = math.huge
+                        local nextPiece = nil
+                        
+                        -- Find closest unvisited (using RAW distance to be accurate)
+                        for _, candidate in ipairs(allPieces) do
+                            if not visited[candidate] then
+                                local candPos, candVis = cam:WorldToViewportPoint(candidate.Position)
+                                if candVis then
+                                    local candX = math.round(candPos.X)
+                                    local candY = math.round(candPos.Y)
+                                    local distance = math.sqrt((candX - rawX)^2 + (candY - rawY)^2)
+                                    
+                                    if distance < shortestDistance then
+                                        shortestDistance = distance
+                                        nextPiece = candidate
+                                    end
+                                end
+                            end
+                        end
+                        
+                        if nextPiece then
+                            visited[nextPiece] = true 
+                            
+                            local nextPos = cam:WorldToViewportPoint(nextPiece.Position)
+                            rawX = math.round(nextPos.X)
+                            rawY = math.round(nextPos.Y)
+                            
+                            -- Apply the outward nudge to the destination
+                            local nextX, nextY = applyNudge(rawX, rawY, centerX, centerY, outwardNudge)
+                            
+                            smoothSlide(currentX, currentY, nextX, nextY, slideDuration)
+                            drawTracerDot(nextX, nextY, false) 
+                            
+                            currentPiece = nextPiece
+                            currentX = nextX
+                            currentY = nextY
+                        else
+                            break 
+                        end
+                    end
+                    
+                    vim:SendMouseButtonEvent(currentX, currentY, 0, false, game, 1)
+                    print("🏁 Smooth drag complete!")
+                end
+                
+                while workspace.Map:FindFirstChild("Honeycomb") do task.wait(1) end
+                isPlaying = false
+                print("✅ Minigame fully cleared!")
+            else
+                task.wait(0.5) 
+            end
+        end
+        
+        if debugGui then debugGui:Destroy() end
+        print("🗑️ Honeycomb handler closed.")
+    end,
+}
+
+local function getActiveMinigame()
+    local mapFolder = workspace:FindFirstChild("Map")
+    if not mapFolder then return nil end
+
+    if mapFolder:FindFirstChild("RedLightGreenLight") then return "RedLightGreenLight" end
+    if mapFolder:FindFirstChild("Honeycomb") then return "Honeycomb" end
+    
+    return nil 
+end
+
+-- // ========================================================================
+-- // 5. MASTER LOOP & PERMANENT SPEED ENFORCER
+-- // ========================================================================
+local farmThread = nil
+local speedEnforcerLoop = nil
+
+local function startPlayerLoop()
+    print("🚀 Starting Player Mode Master Loop...")
+    farmThread = task.spawn(function()
+        while task.wait(1) do
+            local activeGame = getActiveMinigame()
+            if activeGame and MinigameHandlers[activeGame] then
+                 MinigameHandlers[activeGame]()
+            end
+        end
+    end)
+end
+
+local function setupCharacter(character)
+    if farmThread then task.cancel(farmThread); farmThread = nil end
+    if speedEnforcerLoop then speedEnforcerLoop:Disconnect(); speedEnforcerLoop = nil end
+
+    local humanoid = character:WaitForChild("Humanoid")
+    
+    speedEnforcerLoop = runService.Heartbeat:Connect(function()
+        if humanoid then humanoid.WalkSpeed = targetWalkSpeed end
+    end)
+
+    humanoid.Died:Connect(function()
+        targetWalkSpeed = 30 -- ✨ Make sure you stay fast even after respawning
+        if speedEnforcerLoop then speedEnforcerLoop:Disconnect() end
+    end)
+
+    task.wait(2)
+    startPlayerLoop()
+end
+
+-- // ========================================================================
+-- // 6. AUTO-JOIN
+-- // ========================================================================
+local function Main()
+    print("✅ Script Loaded - Attempting Auto-Join...")
+    local teamRemote = repStorage:WaitForChild("Remotes", 20):WaitForChild("PlayerTeam", 20)
+
+    if teamRemote then
+        teamRemote:FireServer()
+        task.wait(1)
+    end
+
+    plr.CharacterAdded:Connect(setupCharacter)
+    if plr.Character then setupCharacter(plr.Character) end
+end
+
+Main()
