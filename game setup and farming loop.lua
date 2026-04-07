@@ -7,6 +7,23 @@ local runService = game:GetService("RunService")
 local repStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 
+local LOBBY_PLACE_ID = 7554888362
+
+local function returnToLobby()
+    print("✈️ Teleporting to lobby...")
+    
+    local success = false
+    while not success do
+        success = pcall(function()
+            TeleportService:Teleport(LOBBY_PLACE_ID, plr)
+        end)
+        
+        if not success then
+            task.wait(3) -- Wait 3 seconds before attempting to teleport again
+        end
+    end
+end
+
 local function teleportTo(position)
     if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         plr.Character:PivotTo(CFrame.new(position))
@@ -99,8 +116,8 @@ task.spawn(function()
     while task.wait(1) do
         local map = workspace:FindFirstChild("Map")
         if map and map:FindFirstChild("IslandEscape") then
-            print("🏁 Game Over detected! Teleporting back to lobby...")
-            TeleportService:Teleport(7554888362, plr)
+            print("🏁 Game Over detected!")
+            returnToLobby()
             break -- Stops checking once the teleport is initiated
         end
     end
@@ -373,12 +390,12 @@ if teamRemote then
     
     local finalGuiCheck = plr:FindFirstChild("PlayerGui")
     if not (finalGuiCheck and finalGuiCheck:FindFirstChild("DetectiveGUI")) then
-        warn("❌ Detective team full. Teleporting back to Register game...")
-        TeleportService:Teleport(7554888362, plr)
+        warn("❌ Detective team full.")
+        returnToLobby()
     end
 else
-    warn("❌ 20-second timeout reached. Teleporting back to Register game...")
-    TeleportService:Teleport(7554888362, plr)
+    warn("❌ 20-second timeout reached.")
+    returnToLobby()
 end
 
 -- // ========================================================================
@@ -404,8 +421,8 @@ if successfullyJoined then
                 
                 -- The second check
                 if not isGuardPresent() then
-                    print("❌ Still no Guard in server! Teleporting to lobby to server hop...")
-                    TeleportService:Teleport(7554888362, plr)
+                    print("❌ Still no Guard in server!")
+                    returnToLobby()
                     return -- Kills the thread entirely while waiting for teleport
                 else
                     print("👮 Guard finally loaded in! Proceeding with speed farm...")
@@ -437,8 +454,8 @@ if successfullyJoined then
                 task.wait(2)
             end
             
-            print("🛑 Max server deposits reached (7/7)! Teleporting to new server...")
-            TeleportService:Teleport(7554888362, plr)
+            print("🛑 Max server deposits reached (7/7)!")
+            returnToLobby()
             
         end)
     end
