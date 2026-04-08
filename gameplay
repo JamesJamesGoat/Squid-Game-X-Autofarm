@@ -1,14 +1,13 @@
 -- // ========================================================================
 -- // 1. CONFIGURATION & SERVICES
 -- // ========================================================================
-local plr = game:GetService("Players").LocalPlayer
-local runService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local plr = Players.LocalPlayer
 local repStorage = game:GetService("ReplicatedStorage")
 local TeleportService = game:GetService("TeleportService")
 local workspace = game:GetService("Workspace")
 
 local LOBBY_PLACE_ID = 7554888362
-local targetWalkSpeed = 30 -- ✨ Global speed controller permanently locked to 30
 
 -- // ========================================================================
 -- // 2. HELPER FUNCTIONS
@@ -17,9 +16,21 @@ local function getCharacter()
     return plr.Character or plr.CharacterAdded:Wait()
 end
 
+-- ✨ UPGRADED: Bulletproof Teleport Logic (pcall + retry loop)
 local function teleportToLobby(reason)
     warn("🔙 Teleporting to lobby: " .. reason)
-    TeleportService:Teleport(LOBBY_PLACE_ID, plr)
+    
+    local success = false
+    while not success do
+        success = pcall(function()
+            TeleportService:Teleport(LOBBY_PLACE_ID, plr)
+        end)
+        
+        if not success then
+            warn("⚠️ Teleport failed! Retrying in 3 seconds...")
+            task.wait(3) 
+        end
+    end
 end
 
 -- // ========================================================================
@@ -53,58 +64,35 @@ end)
 
 local MinigameHandlers = {
     
-    -- 🟢 GAME 1: RED LIGHT GREEN LIGHT
+    -- 🟢 GAME 1: RED LIGHT GREEN LIGHT (BYPASS MODE)
     ["RedLightGreenLight"] = function()
-        print("🚦 Red Light Green Light Detected!")
-        print("⏳ Waiting 20 seconds before moving...")
+        print("🚦 Red Light Green Light Detected! (Bypass Mode)")
+        print("⏳ Waiting 16 seconds for barriers to drop...")
         
-        task.wait(20) -- ✨ The requested 20-second startup delay
+        task.wait(16)
         
         local char = getCharacter()
         local root = char:FindFirstChild("HumanoidRootPart")
         local humanoid = char:FindFirstChild("Humanoid")
         
         local targetX = -12198
-        local isPlaying = true
-
-        task.spawn(function()
-            while isPlaying do
-                local rglMap = workspace.Map:FindFirstChild("RedLightGreenLight")
-                local lightPart = rglMap and rglMap:FindFirstChild("Map") and rglMap.Map:FindFirstChild("PointLight") and rglMap.Map.PointLight:FindFirstChild("PointLight")
+        
+        if root and humanoid then
+            print("🏃‍♂️ Bypassing Red Light! Walking straight to the finish line...")
+            
+            while workspace.Map:FindFirstChild("RedLightGreenLight") do
+                humanoid:MoveTo(Vector3.new(targetX, root.Position.Y, root.Position.Z))
                 
-                if lightPart and root and humanoid then
-                    local r = math.round(lightPart.Color.R * 255)
-                    local g = math.round(lightPart.Color.G * 255)
-                    local b = math.round(lightPart.Color.B * 255)
-
-                    if r == 85 and g == 255 and b == 0 then
-                        targetWalkSpeed = 30
-                        humanoid:MoveTo(Vector3.new(targetX, root.Position.Y, root.Position.Z))
-                    else
-                        targetWalkSpeed = 0
-                        humanoid:MoveTo(root.Position) 
-                    end
+                if math.abs(root.Position.X - targetX) <= 5 then
+                    print("✅ Reached the finish line safe zone!")
+                    break 
                 end
                 
-                task.wait(0.1)
-                if not workspace.Map:FindFirstChild("RedLightGreenLight") then isPlaying = false end
-            end
-        end)
-
-        while isPlaying do
-            task.wait(0.2)
-            if not workspace.Map:FindFirstChild("RedLightGreenLight") or not root then 
-                isPlaying = false; break 
-            end
-            
-            -- Absolute distance check to the hardcoded X coordinate
-            if math.abs(root.Position.X - targetX) <= 5 then
-                print("✅ Reached target X coordinate: -12198")
-                isPlaying = false; break
+                task.wait(0.1) 
             end
         end
 
-        targetWalkSpeed = 30 
+        print("⏳ Waiting for the round to finish for everyone else...")
         while workspace.Map:FindFirstChild("RedLightGreenLight") do task.wait(1) end
         print("🗑️ RLGL Map cleared.")
     end,
@@ -118,8 +106,6 @@ local MinigameHandlers = {
         
         -- ⏱️ SETTINGS
         local slideDuration = 0.15 
-        
-        -- 🎈 THE FIX: How many pixels to inflate the path outward from the center
         local outwardNudge = 13 
         
         -- ✨ Visual Tracer
@@ -154,7 +140,6 @@ local MinigameHandlers = {
             end
         end
 
-        -- 🧮 HELPER: Applies the outward push to any X/Y coordinate
         local function applyNudge(x, y, cx, cy, nudgeAmount)
             if nudgeAmount <= 0 then return x, y end
             local dx = x - cx
@@ -186,7 +171,6 @@ local MinigameHandlers = {
                 
                 task.wait(5) 
                 
-                -- Calculate Center of Mass once
                 local centerX, centerY = 0, 0
                 local validPoints = 0
                 for _, piece in ipairs(allPieces) do
@@ -210,7 +194,6 @@ local MinigameHandlers = {
                 
                 local startPos, onScreen = cam:WorldToViewportPoint(currentPiece.Position)
                 if onScreen then
-                    -- Get raw coordinates, then apply the outward nudge
                     local rawX = math.round(startPos.X)
                     local rawY = math.round(startPos.Y)
                     local currentX, currentY = applyNudge(rawX, rawY, centerX, centerY, outwardNudge)
@@ -227,7 +210,6 @@ local MinigameHandlers = {
                         local shortestDistance = math.huge
                         local nextPiece = nil
                         
-                        -- Find closest unvisited (using RAW distance to be accurate)
                         for _, candidate in ipairs(allPieces) do
                             if not visited[candidate] then
                                 local candPos, candVis = cam:WorldToViewportPoint(candidate.Position)
@@ -251,7 +233,6 @@ local MinigameHandlers = {
                             rawX = math.round(nextPos.X)
                             rawY = math.round(nextPos.Y)
                             
-                            -- Apply the outward nudge to the destination
                             local nextX, nextY = applyNudge(rawX, rawY, centerX, centerY, outwardNudge)
                             
                             smoothSlide(currentX, currentY, nextX, nextY, slideDuration)
@@ -280,6 +261,236 @@ local MinigameHandlers = {
         if debugGui then debugGui:Destroy() end
         print("🗑️ Honeycomb handler closed.")
     end,
+
+    -- 🌙 GAME 3: NIGHTBRAWL
+    ["NightBrawl"] = function()
+        print("🌙 NightBrawl Detected - Evading to randomized safe zone...")
+        local char = getCharacter()
+        local root = char:FindFirstChild("HumanoidRootPart")
+        
+        -- 📍 Base safe zone coordinates
+        local baseX = 8037
+        local baseY = 172
+        local baseZ = 3718
+        
+        local function tpToSafeZone()
+            if root then
+                local offsetX = math.random(-50, 50)
+                local offsetZ = math.random(-50, 50)
+                
+                local finalX = baseX + offsetX
+                local finalZ = baseZ + offsetZ
+                
+                root.CFrame = CFrame.new(finalX, baseY, finalZ)
+                print(string.format("📍 Teleported to safe zone: %d, %d, %d.", finalX, baseY, finalZ))
+            end
+        end
+
+        tpToSafeZone()
+        
+        while workspace.Map:FindFirstChild("NightBrawl") do 
+            if root and root.Position.Y < 136 then
+                warn("⚠️ Altitude dropped below 136! Teleporting back up...")
+                tpToSafeZone()
+            end
+            task.wait(1) 
+        end
+        
+        print("✅ NightBrawl cleared!")
+    end,
+
+    -- 🏃‍♂️ GAME 4: PENTATHLON
+    ["Pentathlon"] = function()
+        print("🏃‍♂️ Pentathlon Detected - AFK mode engaged. Waiting for it to end...")
+        
+        while workspace.Map:FindFirstChild("Pentathlon") do 
+            task.wait(2) 
+        end
+        
+        print("✅ Pentathlon cleared! Ready for the next game.")
+    end,
+
+    -- 🔫 GAME 5: REBELLION
+    ["Rebellion"] = function()
+        print("🔫 Rebellion Detected - Waiting 20 seconds before breaching Frontman's room...")
+        
+        task.wait(35)
+        
+        local char = getCharacter()
+        local root = char:FindFirstChild("HumanoidRootPart")
+        
+        local rebellionMap = workspace.Map:FindFirstChild("Rebellion")
+        local trigger = rebellionMap and rebellionMap:FindFirstChild("FrontmanRoomTrigger")
+        local prompt = trigger and trigger:FindFirstChild("ProximityPrompt")
+        
+        if root and trigger and prompt then
+            root.CFrame = trigger.CFrame * CFrame.new(-1, 1, -1)
+            print("📍 Teleported to Frontman Room Trigger.")
+            
+            task.wait(1)
+            fireproximityprompt(prompt)
+            print("🚪 Proximity prompt fired!")
+        else
+            warn("⚠️ Could not find Rebellion map, trigger, or prompt!")
+        end
+        
+        while workspace.Map:FindFirstChild("Rebellion") do 
+            task.wait(1) 
+        end
+        
+        print("✅ Rebellion cleared!")
+    end,
+
+    -- 🧩 GAME 6: HIDE & SEEK (VESTS & SAFE ZONE)
+    ["HideNSeek"] = function()
+        print("👕 HideNSeek Detected - Initiating Vest Trading & Evasion...")
+        
+        -- 🎯 YOUR TARGET TEAM (Change to "red" or "blue" for live farming)
+        local TARGET_COLOR = "blue" 
+        
+        local char = getCharacter()
+        local root = char:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+
+        local function getMyVestColor()
+            if char:FindFirstChild("Vest_red") then return "red" end
+            if char:FindFirstChild("Vest_blue") then return "blue" end
+            return nil
+        end
+
+        -- // 1. WAIT FOR INITIAL VEST //
+        print("⏳ Waiting for initial vest assignment...")
+        while task.wait(0.5) and workspace.Map:FindFirstChild("HideNSeek") do
+            if getMyVestColor() then break end
+        end
+        
+        if not workspace.Map:FindFirstChild("HideNSeek") then return end
+        print("👕 You were assigned: " .. string.upper(getMyVestColor()))
+
+        -- // 2. WAIT FOR PROMPTS TO APPEAR //
+        print("⏳ Waiting for Team Trade Prompts to spawn...")
+        local promptsAreReady = false
+        while not promptsAreReady and workspace.Map:FindFirstChild("HideNSeek") do
+            task.wait(1)
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.HumanoidRootPart:FindFirstChild("TeamTradePrompt") then
+                    promptsAreReady = true
+                    break
+                end
+            end
+        end
+
+        if not workspace.Map:FindFirstChild("HideNSeek") then return end
+        print("🚨 Prompts detected! Waiting 2 seconds for server stability...")
+        task.wait(2)
+
+        -- // 3. AGGRESSIVE TRADE LOOP WITH ACTIVE WAIT //
+        local targetVestName = "Vest_" .. TARGET_COLOR
+
+        if getMyVestColor() == TARGET_COLOR then
+            print("🎯 Lucky spawn! You already got the " .. string.upper(TARGET_COLOR) .. " team. No need to trade.")
+        else
+            while getMyVestColor() ~= TARGET_COLOR and workspace.Map:FindFirstChild("HideNSeek") do
+                print("🔄 Sending trade requests to EVERY " .. TARGET_COLOR .. " player...")
+                local promptsStillExist = false
+                
+                for _, otherPlayer in ipairs(Players:GetPlayers()) do
+                    if getMyVestColor() == TARGET_COLOR then break end
+                    
+                    if otherPlayer ~= plr and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local otherChar = otherPlayer.Character
+                        
+                        if otherChar:FindFirstChild(targetVestName) then
+                            local tradePrompt = otherChar.HumanoidRootPart:FindFirstChild("TeamTradePrompt")
+                            
+                            if tradePrompt then
+                                promptsStillExist = true
+                                
+                                if otherChar.HumanoidRootPart.Position.Y >= 16 then
+                                    print("🚀 Jumping to " .. otherPlayer.Name .. "...")
+                                    root.CFrame = otherChar.HumanoidRootPart.CFrame * CFrame.new(0, 0, 1)
+                                    task.wait(0.3) 
+                                    fireproximityprompt(tradePrompt)
+                                    task.wait(0.5)
+                                end
+                            end
+                        end
+                    end
+                end
+                
+                -- Did someone accept instantly?
+                if getMyVestColor() == TARGET_COLOR then
+                    print("🎯 Success! Trade completed. You are now on the " .. string.upper(TARGET_COLOR) .. " team.")
+                    break
+                end
+                
+                -- Did the timer run out?
+                if not promptsStillExist then
+                    print("⚠️ Prompts vanished before we could get the target team.")
+                    break
+                end
+                
+                -- ⚡ The Active Wait Loop (5 seconds total)
+                print("⏳ Still wrong team. Watching for late accepts for 5 seconds...")
+                for i = 1, 10 do
+                    task.wait(0.5)
+                    if getMyVestColor() == TARGET_COLOR then
+                        print("⚡ Wake up! Someone accepted the trade early!")
+                        break -- Shatter the wait loop!
+                    end
+                end
+            end
+
+            -- ✨ Catch the Late Accept
+            if getMyVestColor() == TARGET_COLOR then
+                print("🎯 Success (Late Accept)! You are safely on the " .. string.upper(TARGET_COLOR) .. " team.")
+            end
+        end
+
+        -- // 4. WAIT FOR PROMPTS TO DISAPPEAR //
+        print("⏳ Waiting for all trade prompts to despawn...")
+        local promptsExist = true
+        while promptsExist and workspace.Map:FindFirstChild("HideNSeek") do
+            promptsExist = false
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.HumanoidRootPart:FindFirstChild("TeamTradePrompt") then
+                    promptsExist = true
+                    break
+                end
+            end
+            if promptsExist then task.wait(1) end
+        end
+
+        if not workspace.Map:FindFirstChild("HideNSeek") then return end
+        print("🛑 Prompts are gone! Waiting 15 seconds before moving to safe zone...")
+        task.wait(15)
+
+        -- // 5. SAFE ZONE & ANTI-FALL MANEUVER //
+        local BASE_X, BASE_Y, BASE_Z = -822, 40, 337
+        local rng = Random.new() -- Initiating Roblox's modern, smooth randomizer
+
+        local function getSafeCFrame()
+            -- NextNumber generates true decimals so you never stand on the same pixel
+            local offsetX = rng:NextNumber(-50, 50)
+            local offsetZ = rng:NextNumber(-50, 50)
+            return CFrame.new(BASE_X + offsetX, BASE_Y, BASE_Z + offsetZ)
+        end
+
+        if workspace.Map:FindFirstChild("HideNSeek") then
+            root.CFrame = getSafeCFrame()
+            print("🚀 Teleported to 50-Stud Safe Zone!")
+        end
+
+        while workspace.Map:FindFirstChild("HideNSeek") do
+            task.wait(1)
+            if root and root.Position.Y < 16 then
+                print("⚠️ Dropped below Y=16! Snapping back to safe zone...")
+                root.CFrame = getSafeCFrame()
+            end
+        end
+
+        print("🏁 HideNSeek cleared!")
+    end,
 }
 
 local function getActiveMinigame()
@@ -288,15 +499,18 @@ local function getActiveMinigame()
 
     if mapFolder:FindFirstChild("RedLightGreenLight") then return "RedLightGreenLight" end
     if mapFolder:FindFirstChild("Honeycomb") then return "Honeycomb" end
+    if mapFolder:FindFirstChild("NightBrawl") then return "NightBrawl" end 
+    if mapFolder:FindFirstChild("Pentathlon") then return "Pentathlon" end 
+    if mapFolder:FindFirstChild("Rebellion") then return "Rebellion" end 
+    if mapFolder:FindFirstChild("HideNSeek") then return "HideNSeek" end 
     
     return nil 
 end
 
 -- // ========================================================================
--- // 5. MASTER LOOP & PERMANENT SPEED ENFORCER
+-- // 5. MASTER LOOP
 -- // ========================================================================
 local farmThread = nil
-local speedEnforcerLoop = nil
 
 local function startPlayerLoop()
     print("🚀 Starting Player Mode Master Loop...")
@@ -312,19 +526,8 @@ end
 
 local function setupCharacter(character)
     if farmThread then task.cancel(farmThread); farmThread = nil end
-    if speedEnforcerLoop then speedEnforcerLoop:Disconnect(); speedEnforcerLoop = nil end
 
-    local humanoid = character:WaitForChild("Humanoid")
-    
-    speedEnforcerLoop = runService.Heartbeat:Connect(function()
-        if humanoid then humanoid.WalkSpeed = targetWalkSpeed end
-    end)
-
-    humanoid.Died:Connect(function()
-        targetWalkSpeed = 30 -- ✨ Make sure you stay fast even after respawning
-        if speedEnforcerLoop then speedEnforcerLoop:Disconnect() end
-    end)
-
+    -- Wait a moment for the character to fully load into the workspace
     task.wait(2)
     startPlayerLoop()
 end
